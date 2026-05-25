@@ -1,62 +1,95 @@
 import 'package:flutter/material.dart';
-import 'package:mysql_client/mysql_client.dart';
-import 'servicio_conexion.dart';
+import 'login.dart'; // Importamos el login para poder regresar
 
-class PantallaPerfil extends StatefulWidget {
+class PantallaPerfil extends StatelessWidget {
   const PantallaPerfil({Key? key}) : super(key: key);
 
-  @override
-  _PantallaPerfilState createState() => _PantallaPerfilState();
-}
-
-class _PantallaPerfilState extends State<PantallaPerfil> {
-  Future<Map<String, String>?> obtenerDatosPerfil() async {
-    MySQLConnection conn = await ServicioConexion.conectar();
-    
-    // Cambiado a .execute
-    var resultado = await conn.execute("SELECT * FROM usuarios LIMIT 1");
-    await conn.close();
-
-    if (resultado.rows.isNotEmpty) {
-      var fila = resultado.rows.first.assoc();
-      return {
-        "nombre": fila['nombre'] ?? 'Usuario',
-        "institucion": fila['institucion'] ?? 'TecNM / ITTG',
-      };
-    }
-    return null;
+  void _cerrarSesion(BuildContext context) {
+    // Mostramos un diálogo de confirmación institucional antes de salir
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Cerrar Sesión'),
+          content: const Text('¿Estás seguro de que deseas salir del sistema SubeTec?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext); // Cierra el diálogo
+                
+                // Limpia el historial de pantallas y redirige al Login
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const VistaLoginReal()),
+                  (route) => false,
+                );
+              },
+              child: const Text('Salir', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: FutureBuilder<Map<String, String>?>(
-        future: obtenerDatosPerfil(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          
-          String nombre = snapshot.data?['nombre'] ?? 'Jorge Octavio';
-          String inst = snapshot.data?['institucion'] ?? 'SubeTec • TecNM / ITTG';
+    const Color azulInstitucional = Color(0xFF1565C0);
 
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const CircleAvatar(
-                  radius: 50,
-                  backgroundColor: Color(0xFFE25213),
-                  child: Icon(Icons.person, size: 60, color: Colors.white),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Mi Perfil', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        backgroundColor: azulInstitucional,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white),
+            tooltip: 'Cerrar Sesión',
+            onPressed: () => _cerrarSesion(context),
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(height: 20),
+              CircleAvatar(
+                radius: 50,
+                backgroundColor: Colors.blue[50],
+                child: const Icon(Icons.person, size: 60, color: azulInstitucional),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Perfil Universitario', 
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)
+              ),
+              Text(
+                'Comunidad TecNM / ITTG', 
+                style: TextStyle(color: Colors.grey[600], fontSize: 16)
+              ),
+              const SizedBox(height: 40),
+              
+              // Tarjeta visual interactiva para cerrar sesión
+              Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: ListTile(
+                  leading: const Icon(Icons.power_settings_new, color: Colors.red),
+                  title: const Text('Cerrar Sesión', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                  subtitle: const Text('Salir de la cuenta actual de SubeTec'),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+                  onTap: () => _cerrarSesion(context),
                 ),
-                const SizedBox(height: 20),
-                Text(nombre, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                Text(inst, style: const TextStyle(fontSize: 16, color: Colors.grey)),
-              ],
-            ),
-          );
-        },
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

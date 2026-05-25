@@ -14,10 +14,10 @@ class MiAppSubeTec extends StatelessWidget {
       title: 'SubeTec',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primaryColor: const Color(0xFFE25213),
+        primaryColor: const Color(0xFF1565C0),
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFFE25213),
-          primary: const Color(0xFFE25213),
+          seedColor: const Color(0xFF1565C0),
+          primary: const Color(0xFF1565C0),
         ),
         useMaterial3: true,
       ),

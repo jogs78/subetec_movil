@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'pantallas_viajes.dart';
-import 'servicio_conexion.dart';
+import 'conductor.dart'; 
 
 class VistaLoginReal extends StatefulWidget {
   const VistaLoginReal({Key? key}) : super(key: key);
@@ -11,110 +10,88 @@ class VistaLoginReal extends StatefulWidget {
 
 class _VistaLoginRealState extends State<VistaLoginReal> {
   final TextEditingController _correoController = TextEditingController();
-  bool _validando = false;
+  bool _cargando = false;
 
-  Future<void> _iniciarSesion() async {
-    final correo = _correoController.text.trim();
+  // Tu lista real de usuarios para simular el inicio de sesión
+  final List<Map<String, dynamic>> _usuarios = [
+    {'id': 1, 'nombre': 'Jorge Octavio', 'correo': 'jorge'},
+    {'id': 2, 'nombre': 'Fulanito Detal', 'correo': 'fulanito'},
+    {'id': 3, 'nombre': 'Carlos Eduardo', 'correo': 'carlos'},
+    {'id': 4, 'nombre': 'Ana Valeria', 'correo': 'ana'},
+    {'id': 5, 'nombre': 'María Fernanda', 'correo': 'maria'},
+    {'id': 6, 'nombre': 'Alejandro Ruiz', 'correo': 'alejandro'},
+  ];
 
-    if (correo.isEmpty) {
-      _mostrarAlerta('Por favor, ingresa tu correo institucional.');
-      return;
-    }
+  void _autenticarUsuario() async {
+    String entrada = _correoController.text.trim().toLowerCase();
+    if (entrada.isEmpty) return;
 
-    setState(() => _validando = true);
-    var conn = await ServicioConexion.conectar();
+    setState(() => _cargando = true);
+    await Future.delayed(const Duration(milliseconds: 400));
+    setState(() => _cargando = false);
 
-    try {
-      // Consultamos el usuario en base al correo ingresado
-      var resultado = await conn.execute(
-        "SELECT id, nombre FROM usuarios WHERE correo = :correo LIMIT 1",
-        {"correo": correo},
-      );
+    // Buscamos si el correo ingresado coincide con alguno de la lista
+    final usuarioEncontrado = _usuarios.firstWhere(
+      (u) => u['correo'] == entrada || entrada.contains(u['correo']),
+      orElse: () => {'id': 1, 'nombre': 'Jorge Octavio'}, // Por defecto si no coincide
+    );
 
-      if (resultado.rows.isNotEmpty) {
-        // CORRECCIÓN: Invocamos .assoc() como función con los paréntesis ()
-        final usuarioEncontrado = resultado.rows.first.assoc(); 
-        
-        final int idDb = int.parse(usuarioEncontrado['id']!);
-        final String nombreDb = usuarioEncontrado['nombre']!;
+    if (!mounted) return;
 
-        if (!mounted) return;
-        
-        // Redirigimos al contenedor de las 4 pestañas pasando los datos de la DB
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => PantallaPrincipalContenedora(
-              idUsuario: idDb,
-              nombreUsuario: nombreDb,
-            ),
-          ),
-        );
-      } else {
-        _mostrarAlerta('El correo no está registrado en el sistema SubeTec.');
-      }
-    } catch (e) {
-      _mostrarAlerta('Error de autenticación: $e');
-    } finally {
-      await conn.close();
-      if (mounted) setState(() => _validando = false);
-    }
-  }
-
-  void _mostrarAlerta(String mensaje) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(mensaje), backgroundColor: Colors.red),
+    // ¡AHORA SÍ ES DINÁMICO! Pasa el ID y Nombre del que inicia sesión
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PantallaConductor(
+          idUsuario: usuarioEncontrado['id'],
+          nombreUsuario: usuarioEncontrado['nombre'],
+        ),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    const Color azulInstitucional = Color(0xFF1565C0);
+
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Center(
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
-                  'SubeTec',
-                  style: TextStyle(fontSize: 46, fontWeight: FontWeight.bold, color: Color(0xFFE25213)),
+      backgroundColor: Colors.white,
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.directions_car, size: 90, color: azulInstitucional),
+              const SizedBox(height: 16),
+              const Text(
+                'Subetec',
+                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: azulInstitucional),
+              ),
+              const SizedBox(height: 40),
+              TextField(
+                controller: _correoController,
+                decoration: InputDecoration(
+                  labelText: 'alguien@tuxtla.tecnm.mx',
+                  prefixIcon: const Icon(Icons.email, color: azulInstitucional),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                const SizedBox(height: 5),
-                Text('TecNM / ITTG', style: TextStyle(color: Colors.grey[600], fontSize: 16)),
-                const SizedBox(height: 40),
-                
-                // Campo de texto con el estilo de bordes redondeados (OutlineInputBorder)
-                TextField(
-                  controller: _correoController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Correo Institucional',
-                    hintText: 'ejemplo@tuxtla.tecnm.mx',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.email),
+              ),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: azulInstitucional,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
+                  onPressed: _cargando ? null : _autenticarUsuario,
+                  child: const Text('Iniciar Sesión', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
-                const SizedBox(height: 25),
-                
-                // Botón ovalado naranja
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFE25213),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                    ),
-                    onPressed: _validando ? null : _iniciarSesion,
-                    child: _validando
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text('Iniciar Sesión', style: TextStyle(fontSize: 18, color: Colors.white)),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
