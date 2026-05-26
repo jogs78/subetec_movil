@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
-import 'login.dart'; // Importamos el login para poder regresar
+import 'login.dart'; 
 
 class PantallaPerfil extends StatelessWidget {
-  const PantallaPerfil({Key? key}) : super(key: key);
+  final int idUsuario;
+  final String nombreUsuario; // Recibe dinámicamente el nombre desde el Conductor
+
+  const PantallaPerfil({Key? key, required this.idUsuario, required this.nombreUsuario}) : super(key: key);
 
   void _cerrarSesion(BuildContext context) {
-    // Mostramos un diálogo de confirmación institucional antes de salir
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
@@ -19,9 +21,7 @@ class PantallaPerfil extends StatelessWidget {
             ),
             TextButton(
               onPressed: () {
-                Navigator.pop(dialogContext); // Cierra el diálogo
-                
-                // Limpia el historial de pantallas y redirige al Login
+                Navigator.pop(dialogContext); 
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(builder: (context) => const VistaLoginReal()),
@@ -42,7 +42,7 @@ class PantallaPerfil extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mi Perfil', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: Text('Perfil: $nombreUsuario', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: azulInstitucional,
         actions: [
           IconButton(
@@ -65,17 +65,16 @@ class PantallaPerfil extends StatelessWidget {
                 child: const Icon(Icons.person, size: 60, color: azulInstitucional),
               ),
               const SizedBox(height: 20),
-              const Text(
-                'Perfil Universitario', 
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)
+              Text(
+                nombreUsuario, // Muestra el nombre real del usuario conectado
+                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)
               ),
               Text(
-                'Comunidad TecNM / ITTG', 
+                'Comunidad TecNM / ITTG (ID: #$idUsuario)', 
                 style: TextStyle(color: Colors.grey[600], fontSize: 16)
               ),
               const SizedBox(height: 40),
               
-              // Tarjeta visual interactiva para cerrar sesión
               Card(
                 elevation: 2,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
