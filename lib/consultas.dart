@@ -107,4 +107,36 @@ class ServicioConsultas {
     
     return listaViajes;
   }
+
+  /// CONSULTA DE ANUNCIOS: Soporta filtrado opcional por categoría desde el Feed de Inicio
+  static Future<List<Map<String, dynamic>>> obtenerAnuncios({String categoria = ''}) async {
+    List<Map<String, dynamic>> listaAnuncios = [];
+    MySQLConnection? conn;
+
+    try {
+      conn = await ServicioConexion.conectar();
+      
+      IResultSet resultado;
+      if (categoria.isNotEmpty) {
+        resultado = await conn.execute(
+          "SELECT id, imagen, titulo, descripcion, oferta, precio, categoria FROM anuncios WHERE categoria = :categoria ORDER BY id DESC",
+          {"categoria": categoria}
+        );
+      } else {
+        resultado = await conn.execute(
+          "SELECT id, imagen, titulo, descripcion, oferta, precio, categoria FROM anuncios ORDER BY id DESC"
+        );
+      }
+
+      for (var fila in resultado.rows) {
+        listaAnuncios.add(Map<String, dynamic>.from(fila.assoc()));
+      }
+    } catch (e) {
+      debugPrint("Error en ServicioConsultas (obtenerAnuncios): $e");
+    } finally {
+      if (conn != null) await conn.close();
+    }
+    
+    return listaAnuncios;
+  }
 }
