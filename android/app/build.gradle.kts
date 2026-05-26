@@ -6,11 +6,12 @@ plugins {
 }
 
 android {
-    this.ndkVersion = "27.0.12077973"
 
+    this.ndkVersion = "27.0.12077973"
+    compileSdk = flutter.compileSdkVersion
     namespace = "com.example.movil"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    //ndkVersion = flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11

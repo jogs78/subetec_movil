@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'conductor.dart'; 
+import 'conexion.dart';  
 
 class VistaLoginReal extends StatefulWidget {
   const VistaLoginReal({Key? key}) : super(key: key);
@@ -9,45 +10,71 @@ class VistaLoginReal extends StatefulWidget {
 }
 
 class _VistaLoginRealState extends State<VistaLoginReal> {
-  final TextEditingController _correoController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  final _correoController = TextEditingController();
   bool _cargando = false;
 
-  // Tu lista real de usuarios para simular el inicio de sesión
-  final List<Map<String, dynamic>> _usuarios = [
-    {'id': 1, 'nombre': 'Jorge Octavio', 'correo': 'jorge'},
-    {'id': 2, 'nombre': 'Fulanito Detal', 'correo': 'fulanito'},
-    {'id': 3, 'nombre': 'Carlos Eduardo', 'correo': 'carlos'},
-    {'id': 4, 'nombre': 'Ana Valeria', 'correo': 'ana'},
-    {'id': 5, 'nombre': 'María Fernanda', 'correo': 'maria'},
-    {'id': 6, 'nombre': 'Alejandro Ruiz', 'correo': 'alejandro'},
-  ];
+  void _intentarIniciarSesion() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() {
+        _cargando = true;
+      });
 
-  void _autenticarUsuario() async {
-    String entrada = _correoController.text.trim().toLowerCase();
-    if (entrada.isEmpty) return;
+      String correoDigitado = _correoController.text.trim();
 
-    setState(() => _cargando = true);
-    await Future.delayed(const Duration(milliseconds: 400));
-    setState(() => _cargando = false);
+      try {
+        final conn = await ServicioConexion.conectar();
 
-    // Buscamos si el correo ingresado coincide con alguno de la lista
-    final usuarioEncontrado = _usuarios.firstWhere(
-      (u) => u['correo'] == entrada || entrada.contains(u['correo']),
-      orElse: () => {'id': 1, 'nombre': 'Jorge Octavio'}, // Por defecto si no coincide
-    );
+        final resultado = await conn.execute(
+          "SELECT id, nombre FROM usuarios WHERE correo = :correo LIMIT 1",
+          {"correo": correoDigitado},
+        );
 
-    if (!mounted) return;
+        await conn.close();
 
-    // ¡AHORA SÍ ES DINÁMICO! Pasa el ID y Nombre del que inicia sesión
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => PantallaConductor(
-          idUsuario: usuarioEncontrado['id'],
-          nombreUsuario: usuarioEncontrado['nombre'],
-        ),
-      ),
-    );
+        if (resultado.rows.isNotEmpty) {
+          final usuarioEncontrado = resultado.rows.first;
+          
+          int idReal = int.parse(usuarioEncontrado.assoc()['id']!);
+          String nombreReal = usuarioEncontrado.assoc()['nombre']!;
+
+          if (!mounted) return;
+
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PantallaConductor(
+                idUsuario: idReal,
+                nombreUsuario: nombreReal,
+              ),
+            ),
+          );
+        } else {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('El correo electrónico no se encuentra registrado.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint("Error en el login: $e");
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error de conexión con el servidor: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } finally {
+        if (mounted) {
+          setState(() {
+            _cargando = false;
+          });
+        }
+      }
+    }
   }
 
   @override
@@ -55,43 +82,63 @@ class _VistaLoginRealState extends State<VistaLoginReal> {
     const Color azulInstitucional = Color(0xFF1565C0);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.grey[100],
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(32.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.directions_car, size: 90, color: azulInstitucional),
-              const SizedBox(height: 16),
-              const Text(
-                'Subetec',
-                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: azulInstitucional),
-              ),
-              const SizedBox(height: 40),
-              TextField(
-                controller: _correoController,
-                decoration: InputDecoration(
-                  labelText: 'alguien@tuxtla.tecnm.mx',
-                  prefixIcon: const Icon(Icons.email, color: azulInstitucional),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          child: Card(
+            elevation: 4,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.directions_car, size: 64, color: azulInstitucional),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Sistema de Asistencia Compartida',
+                      textAlign: TextAlign.center, // Corregido aquí
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: azulInstitucional),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Ingrese su identificador de acceso',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                    const SizedBox(height: 32),
+                    TextFormField(
+                      controller: _correoController,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                        labelText: 'Correo Electrónico o Usuario',
+                        prefixIcon: Icon(Icons.person, color: azulInstitucional),
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (v) => v!.trim().isEmpty ? 'Por favor introduce tu identificador' : null,
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: azulInstitucional,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: _cargando ? null : _intentarIniciarSesion,
+                        child: _cargando
+                            ? const CircularProgressIndicator(color: Colors.white)
+                            : const Text('Iniciar Sesión', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: azulInstitucional,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  onPressed: _cargando ? null : _autenticarUsuario,
-                  child: const Text('Iniciar Sesión', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),

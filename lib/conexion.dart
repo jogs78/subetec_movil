@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mysql_client/mysql_client.dart';
 
 class ServicioConexion {
-  static const String _host = '127.0.0.1'; 
+  static const String _host = '10.0.2.2'; 
   static const int _port = 3306;
   static const String _user = 'subetec';
   static const String _password = 'subetec';

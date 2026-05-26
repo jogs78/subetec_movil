@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart'; // Define debugPrint sin cargar todo Material
 import 'package:mysql_client/mysql_client.dart';
 import 'conexion.dart';
 
@@ -13,7 +13,7 @@ class ServicioConsultas {
       conn = await ServicioConexion.conectar();
       
       var resultado = await conn.execute(
-        "SELECT v.id, v.origen, v.destino, v.salida, v.asientos_disponibles, "
+        "SELECT v.id, v.conductor, v.origen, v.destino, v.salida, v.asientos_disponibles, "
         "v.marca, v.modelo, u.nombre AS nombre_conductor "
         "FROM viajes v "
         "JOIN usuarios u ON v.conductor = u.id "
@@ -26,7 +26,7 @@ class ServicioConsultas {
         viajesEncontrados.add(Map<String, dynamic>.from(fila.assoc()));
       }
     } catch (e) {
-      debugPrint("Error en ServicioConsultas (buscarViajes): \$e");
+      debugPrint("Error en ServicioConsultas (buscarViajes): $e");
     } finally {
       if (conn != null) await conn.close();
     }
@@ -34,7 +34,41 @@ class ServicioConsultas {
     return viajesEncontrados;
   }
 
-  /// Consulta para el historial del Conductor: Trae rutas creadas por el usuario activo
+  /// Registra la reservación real en la tabla pivote y descuenta el asiento
+  static Future<bool> reservarViaje({required int idPasajero, required int idViaje}) async {
+    MySQLConnection? conn;
+
+    try {
+      conn = await ServicioConexion.conectar();
+
+      // 1. Insertamos en la tabla pivote 'usuario_viaje'
+      await conn.execute(
+        "INSERT INTO usuario_viaje (usuario_id, viaje_id, created_at, updated_at) "
+        "VALUES (:usuarioId, :viajeId, NOW(), NOW())",
+        {
+          "usuarioId": idPasajero,
+          "viajeId": idViaje,
+        },
+      );
+
+      // 2. Descontamos el asiento disponible de la tabla viajes
+      await conn.execute(
+        "UPDATE viajes SET asientos_disponibles = asientos_disponibles - 1 WHERE id = :viajeId",
+        {
+          "viajeId": idViaje,
+        },
+      );
+
+      return true; 
+    } catch (e) {
+      debugPrint("Error en ServicioConsultas (reservarViaje): $e");
+      return false; 
+    } finally {
+      if (conn != null) await conn.close();
+    }
+  }
+
+  /// Consulta para el historial mixto: Trae viajes creados (Conductor) o reservados (Pasajero)
   static Future<List<Map<String, String?>>> obtenerHistorialViajes(int idUsuario) async {
     List<Map<String, String?>> listaViajes = [];
     MySQLConnection? conn;
@@ -43,16 +77,30 @@ class ServicioConsultas {
       conn = await ServicioConexion.conectar();
       
       var resultado = await conn.execute(
-        "SELECT id, origen, destino, salida, asientos_disponibles, marca, modelo "
-        "FROM viajes WHERE conductor = :conductor ORDER BY id DESC",
-        {"conductor": idUsuario},
+        "SELECT v.id, v.origen, v.destino, v.salida, v.asientos_disponibles, v.marca, v.modelo, "
+        "u.nombre AS nombre_conductor, 'Conductor' AS rol "
+        "FROM viajes v "
+        "JOIN usuarios u ON v.conductor = u.id "
+        "WHERE v.conductor = :usuarioId "
+        
+        "UNION "
+        
+        "SELECT v.id, v.origen, v.destino, v.salida, v.asientos_disponibles, v.marca, v.modelo, "
+        "u.nombre AS nombre_conductor, 'Pasajero' AS rol "
+        "FROM viajes v "
+        "JOIN usuario_viaje uv ON v.id = uv.viaje_id "
+        "JOIN usuarios u ON v.conductor = u.id "
+        "WHERE uv.usuario_id = :usuarioId "
+        
+        "ORDER BY salida DESC",
+        {"usuarioId": idUsuario},
       );
 
       for (var fila in resultado.rows) {
         listaViajes.add(fila.assoc());
       }
     } catch (e) {
-      debugPrint("Error en ServicioConsultas (obtenerHistorial): \$e");
+      debugPrint("Error en ServicioConsultas (obtenerHistorialMixto): $e");
     } finally {
       if (conn != null) await conn.close();
     }
